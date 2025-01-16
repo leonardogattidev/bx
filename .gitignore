@@ -5,3 +5,5 @@
 tags
 .DS_Store
 .gdb_history
+.zig-cache
+zig-out
