@@ -9,19 +9,24 @@ pub fn build(b: *std.Build) void {
         .target = target,
         .optimize = optimize,
     });
-    bx_lib.defineCMacro("BX_CONFIG_DEBUG", "0"); // Release
-    bx_lib.addCSourceFiles(.{ .files = &src_files });
-    bx_lib.linkLibCpp();
-    bx_lib.addIncludePath(b.path("include"));
-    bx_lib.addIncludePath(b.path("3rdparty"));
+    const bx_mod = bx_lib.root_module;
+    bx_mod.addCSourceFiles(.{ .files = &src_files });
+    bx_mod.link_libcpp = true;
+    bx_mod.addCMacro("BX_CONFIG_DEBUG", "0"); // Release
+    bx_mod.addIncludePath(b.path("include"));
+    bx_mod.addIncludePath(b.path("3rdparty"));
+
     bx_lib.installHeadersDirectory(b.path("include"), ".", .{
         .include_extensions = &.{ ".h", ".inl" },
     });
-
+    bx_lib.installHeadersDirectory(b.path("include/compat/mingw/"), ".", .{
+        .include_extensions = &.{ ".h", ".inl" },
+    });
     b.installArtifact(bx_lib);
 }
 
 const src_files = [_][]const u8{
+    // "src/amalgamated.cpp",
     "src/commandline.cpp",
     "src/debug.cpp",
     "src/mutex.cpp",
@@ -42,7 +47,6 @@ const src_files = [_][]const u8{
     "src/settings.cpp",
     "src/timer.cpp",
     "src/crtnone.cpp",
-    "src/amalgamated.cpp",
     "src/sort.cpp",
     "src/url.cpp",
 };
