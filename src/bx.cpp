@@ -52,9 +52,6 @@ namespace bx
 			", OS: " BX_PLATFORM_NAME
 			", CRT: " BX_CRT_NAME
 			", C++: " BX_CPP_NAME
-
-			", Date: " __DATE__
-			", Time: " __TIME__
 			"\n"
 			);
 
