@@ -1,52 +1,65 @@
 const std = @import("std");
 
-pub fn build(b: *std.Build) void {
+pub fn build(b: *std.Build) !void {
     const target = b.standardTargetOptions(.{});
     const optimize = b.standardOptimizeOption(.{});
 
-    const bx_lib = b.addStaticLibrary(.{
-        .name = "bx",
+    const mod = b.addModule("bx", .{
         .target = target,
         .optimize = optimize,
     });
-    const bx_mod = bx_lib.root_module;
-    bx_mod.addCSourceFiles(.{ .files = &src_files });
-    bx_mod.link_libcpp = true;
-    bx_mod.addCMacro("BX_CONFIG_DEBUG", "0"); // Release
-    bx_mod.addIncludePath(b.path("include"));
-    bx_mod.addIncludePath(b.path("3rdparty"));
+    const lib = b.addStaticLibrary(.{
+        .name = "bx",
+        .root_module = mod,
+    });
 
-    bx_lib.installHeadersDirectory(b.path("include"), ".", .{
+    const t = target.result;
+    const is_debug = mod.optimize == .Debug;
+
+    mod.addCSourceFiles(.{
+        .flags = &cpp_flags,
+        .files = &cpp_src,
+    });
+    mod.link_libcpp = true;
+
+    mod.addCMacro("__STDC_LIMIT_MACROS", "");
+    mod.addCMacro("__STDC_FORMAT_MACROS", "");
+    mod.addCMacro("__STDC_CONSTANT_MACROS", "");
+    mod.addCMacro(if (is_debug) "_DEBUG" else "NDEBUG", "");
+    mod.addCMacro("BX_CONFIG_DEBUG", if (is_debug) "1" else "0");
+
+    mod.addIncludePath(b.path("include"));
+    mod.addIncludePath(b.path("3rdparty"));
+    switch (t.os.tag) {
+        .windows => {
+            mod.addCMacro("WIN32", "1");
+            switch (t.abi) {
+                .gnu => {
+                    mod.addIncludePath(b.path("include/compat/mingw"));
+                    mod.addCMacro("MINGW_HAS_SECURE_API", "1");
+                },
+                .msvc => mod.addIncludePath(b.path("include/compat/msvc")),
+                else => {},
+            }
+        },
+        .linux => mod.addIncludePath(b.path("include/compat/linux")),
+        .macos => mod.addIncludePath(b.path("include/compat/osx")),
+        .freebsd => mod.addIncludePath(b.path("include/compat/freebsd")),
+        .ios => mod.addIncludePath(b.path("include/compat/ios")),
+        else => {},
+    }
+
+    lib.installHeadersDirectory(b.path("include"), ".", .{
         .include_extensions = &.{ ".h", ".inl" },
     });
-    bx_lib.installHeadersDirectory(b.path("include/compat/mingw/"), ".", .{
-        .include_extensions = &.{ ".h", ".inl" },
-    });
-    b.installArtifact(bx_lib);
+    b.installArtifact(lib);
 }
 
-const src_files = [_][]const u8{
-    // "src/amalgamated.cpp",
-    "src/commandline.cpp",
-    "src/debug.cpp",
-    "src/mutex.cpp",
-    "src/file.cpp",
-    "src/bx.cpp",
-    "src/os.cpp",
-    "src/easing.cpp",
-    "src/bounds.cpp",
-    "src/string.cpp",
-    "src/allocator.cpp",
-    "src/semaphore.cpp",
-    "src/thread.cpp",
-    "src/process.cpp",
-    "src/math.cpp",
-    "src/filepath.cpp",
-    "src/hash.cpp",
-    "src/dtoa.cpp",
-    "src/settings.cpp",
-    "src/timer.cpp",
-    "src/crtnone.cpp",
-    "src/sort.cpp",
-    "src/url.cpp",
+const cpp_flags = [_][]const u8{
+    "-std=c++17",
+    "-fno-sanitize=undefined",
+};
+
+const cpp_src = [_][]const u8{
+    "src/amalgamated.cpp",
 };
